@@ -55,7 +55,7 @@ function WeightPage() {
         <p className="font-display text-5xl font-extrabold">{display(profile.weightKg)}<span className="ml-1 text-xl">{unit}</span></p>
         <div className="mt-3 flex gap-4 text-sm">
           <span>BMI {bmi(profile.weightKg, profile.heightCm).toFixed(1)}</span>
-          <span>{change >= 0 ? "+" : ""}{display(profile.weightKg) - +display(startW) === 0 ? "0.0" : (profile.units === "metric" ? change : kgToLbs(change)).toFixed(1)} {unit}</span>
+          <span>{change >= 0 ? "+" : ""}{(profile.units === "metric" ? change : kgToLbs(change)).toFixed(1)} {unit}</span>
         </div>
       </div>
 
