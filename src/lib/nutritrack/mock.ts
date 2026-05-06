@@ -62,7 +62,7 @@ export const mockPosts: MockPost[] = [
   {
     id: "p3", userId: "u3",
     image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=800&q=80",
-    caption: "Rainbow bowl, 38g protein from tempeh + edamame ✨ #plantbased", likes: ２87 as unknown as number, hoursAgo: 8,
+    caption: "Rainbow bowl, 38g protein from tempeh + edamame ✨ #plantbased", likes: 287, hoursAgo: 8,
     macros: { kcal: 540, p: 38 }, tag: "⚖️ Maintaining",
     comments: [],
   },
