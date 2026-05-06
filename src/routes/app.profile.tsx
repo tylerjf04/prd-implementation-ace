@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useStore, computeStreak } from "@/lib/nutritrack/store";
 import { Settings, Flame, Grid3x3, BarChart3, LogOut } from "lucide-react";
 import { mockPosts } from "@/lib/nutritrack/mock";
@@ -10,7 +10,8 @@ export const Route = createFileRoute("/app/profile")({
 });
 
 function ProfilePage() {
-  const { state, reset } = useStore();
+  const { state, signOut } = useStore();
+  const navigate = useNavigate();
   const profile = state.profile!;
   const plan = state.plan!;
   const streak = useMemo(() => computeStreak(state.meals, plan.calories), [state.meals, plan.calories]);
@@ -92,10 +93,13 @@ function ProfilePage() {
       </div>
 
       <button
-        onClick={() => { if (confirm("Reset all NutriTrack data?")) reset(); }}
+        onClick={async () => {
+          await signOut();
+          navigate({ to: "/auth" });
+        }}
         className="mt-8 flex w-full items-center justify-center gap-2 rounded-full border border-destructive/30 py-3 text-sm font-semibold text-destructive"
       >
-        <LogOut className="h-4 w-4" /> Reset demo data
+        <LogOut className="h-4 w-4" /> Sign out
       </button>
     </div>
   );

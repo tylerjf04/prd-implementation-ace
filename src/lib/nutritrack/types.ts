@@ -53,4 +53,6 @@ export interface AppState {
   meals: MealEntry[];
   weights: WeightEntry[];
   onboardingComplete: boolean;
+  userId: string | null;
+  authLoading: boolean;
 }

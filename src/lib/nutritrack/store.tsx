@@ -1,93 +1,160 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AppState, Profile, MealEntry, WeightEntry, MacroPlan } from "./types";
 import { generatePlan, todayISO } from "./calc";
-
-const KEY = "nutritrack:v1";
+import { supabase } from "@/lib/supabase";
+import {
+  loadUserData,
+  saveProfile,
+  savePlan,
+  insertMealEntry,
+  deleteMealEntry,
+  upsertWeightLog,
+  updateProfileWeight,
+} from "./db";
 
 const initial: AppState = {
   meals: [],
   weights: [],
   onboardingComplete: false,
+  userId: null,
+  authLoading: true,
 };
 
 interface Ctx {
   state: AppState;
-  completeOnboarding: (p: Profile) => void;
+  completeOnboarding: (p: Profile) => Promise<void>;
   updateProfile: (p: Partial<Profile>) => void;
   setPlan: (plan: MacroPlan) => void;
   addMeal: (m: Omit<MealEntry, "id" | "createdAt">) => void;
   removeMeal: (id: string) => void;
   addWeight: (kg: number, date?: string) => void;
+  signOut: () => Promise<void>;
   reset: () => void;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
 
-function load(): AppState {
-  if (typeof window === "undefined") return initial;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return initial;
-    return { ...initial, ...JSON.parse(raw) };
-  } catch {
-    return initial;
-  }
-}
-
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(initial);
-  const [hydrated, setHydrated] = useState(false);
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setState(load());
-    setHydrated(true);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const uid = session?.user?.id ?? null;
+      userIdRef.current = uid;
+
+      if (!uid) {
+        setState({ ...initial, authLoading: false });
+        return;
+      }
+
+      setState((s) => ({ ...s, userId: uid, authLoading: true }));
+      try {
+        const data = await loadUserData(uid);
+        setState({
+          userId: uid,
+          authLoading: false,
+          profile: data.profile,
+          plan: data.plan,
+          meals: data.meals,
+          weights: data.weights,
+          onboardingComplete: !!data.profile,
+        });
+      } catch (err) {
+        console.error("[store] loadUserData:", err);
+        setState((s) => ({ ...s, authLoading: false }));
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (hydrated) localStorage.setItem(KEY, JSON.stringify(state));
-  }, [state, hydrated]);
 
   const value: Ctx = {
     state,
-    completeOnboarding: (profile) => {
+
+    completeOnboarding: async (profile) => {
+      const uid = userIdRef.current;
+      if (!uid) throw new Error("Not authenticated");
+
       const plan = generatePlan(profile);
-      setState((s) => ({
-        ...s,
+      await Promise.all([
+        saveProfile(uid, profile),
+        savePlan(uid, plan),
+        upsertWeightLog(uid, profile.weightKg, todayISO()),
+      ]);
+
+      setState({
+        userId: uid,
+        authLoading: false,
         profile,
         plan,
+        meals: [],
+        weights: [{ id: crypto.randomUUID(), date: todayISO(), weightKg: profile.weightKg }],
         onboardingComplete: true,
-        weights:
-          s.weights.length === 0
-            ? [{ id: crypto.randomUUID(), date: todayISO(), weightKg: profile.weightKg }]
-            : s.weights,
-      }));
+      });
     },
-    updateProfile: (p) =>
+
+    updateProfile: (p) => {
       setState((s) => {
         if (!s.profile) return s;
         const profile = { ...s.profile, ...p };
-        return { ...s, profile, plan: generatePlan(profile) };
-      }),
-    setPlan: (plan) => setState((s) => ({ ...s, plan })),
-    addMeal: (m) =>
-      setState((s) => ({
-        ...s,
-        meals: [
-          ...s.meals,
-          { ...m, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
-        ],
-      })),
-    removeMeal: (id) => setState((s) => ({ ...s, meals: s.meals.filter((x) => x.id !== id) })),
-    addWeight: (weightKg, date) =>
+        const plan = generatePlan(profile);
+        const uid = userIdRef.current;
+        if (uid) {
+          saveProfile(uid, profile).catch(console.error);
+          savePlan(uid, plan).catch(console.error);
+        }
+        return { ...s, profile, plan };
+      });
+    },
+
+    setPlan: (plan) => {
+      setState((s) => ({ ...s, plan }));
+      const uid = userIdRef.current;
+      if (uid) savePlan(uid, plan).catch(console.error);
+    },
+
+    addMeal: (m) => {
+      const id = crypto.randomUUID();
+      const entry: MealEntry = { ...m, id, createdAt: new Date().toISOString() };
+      setState((s) => ({ ...s, meals: [...s.meals, entry] }));
+      const uid = userIdRef.current;
+      if (uid) insertMealEntry(uid, entry).catch(console.error);
+    },
+
+    removeMeal: (id) => {
+      setState((s) => ({ ...s, meals: s.meals.filter((x) => x.id !== id) }));
+      deleteMealEntry(id).catch(console.error);
+    },
+
+    addWeight: (weightKg, date) => {
+      const d = date ?? todayISO();
       setState((s) => ({
         ...s,
         weights: [
-          ...s.weights.filter((w) => w.date !== (date ?? todayISO())),
-          { id: crypto.randomUUID(), date: date ?? todayISO(), weightKg },
+          ...s.weights.filter((w) => w.date !== d),
+          { id: crypto.randomUUID(), date: d, weightKg },
         ].sort((a, b) => a.date.localeCompare(b.date)),
         profile: s.profile ? { ...s.profile, weightKg } : s.profile,
-      })),
-    reset: () => setState(initial),
+      }));
+      const uid = userIdRef.current;
+      if (uid) {
+        upsertWeightLog(uid, weightKg, d).catch(console.error);
+        updateProfileWeight(uid, weightKg).catch(console.error);
+      }
+    },
+
+    signOut: async () => {
+      await supabase.auth.signOut();
+      userIdRef.current = null;
+      setState({ ...initial, authLoading: false });
+    },
+
+    reset: () => {
+      setState((s) => ({ ...initial, authLoading: false, userId: s.userId }));
+    },
   };
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
@@ -99,7 +166,7 @@ export function useStore() {
   return c;
 }
 
-/** Compute streak from meals + plan (within ±10% of calorie target). */
+/** Compute streak: consecutive days within ±10% of calorie target. */
 export function computeStreak(meals: MealEntry[], targetKcal?: number) {
   if (!targetKcal) return 0;
   const byDay = new Map<string, number>();
@@ -108,13 +175,12 @@ export function computeStreak(meals: MealEntry[], targetKcal?: number) {
   const hi = targetKcal * 1.1;
   let streak = 0;
   const d = new Date();
-  // Walk backwards from today, allowing today to be incomplete (don't break)
   for (let i = 0; i < 365; i++) {
     const iso = d.toISOString().slice(0, 10);
     const cal = byDay.get(iso) ?? 0;
     const hit = cal >= lo && cal <= hi;
     if (i === 0 && !hit) {
-      // today not yet hit — don't reset, just skip
+      // today still in progress — don't break streak
     } else if (hit) {
       streak++;
     } else {

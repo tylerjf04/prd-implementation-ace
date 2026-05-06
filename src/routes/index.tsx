@@ -12,8 +12,10 @@ function Landing() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (state.onboardingComplete) navigate({ to: "/app" });
-  }, [state.onboardingComplete, navigate]);
+    if (!state.authLoading && state.userId && state.onboardingComplete) {
+      navigate({ to: "/app" });
+    }
+  }, [state.authLoading, state.userId, state.onboardingComplete, navigate]);
 
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -41,23 +43,17 @@ function Landing() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              to="/onboarding"
+              to="/auth"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-sunset px-7 py-4 text-base font-semibold text-primary-foreground shadow-glow transition active:scale-95"
             >
               Build my plan
               <ChevronRight className="h-5 w-5" />
             </Link>
             <Link
-              to="/app/feed"
+              to="/auth"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-7 py-4 text-base font-semibold text-foreground transition hover:bg-accent"
-              onClick={(e) => {
-                if (!state.onboardingComplete) {
-                  e.preventDefault();
-                  navigate({ to: "/onboarding" });
-                }
-              }}
             >
-              Peek the feed
+              Sign in
             </Link>
           </div>
 
@@ -126,7 +122,7 @@ function Landing() {
 
       <section className="px-5 pb-24 pt-8 text-center">
         <Link
-          to="/onboarding"
+          to="/auth"
           className="inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-4 text-base font-semibold text-background transition active:scale-95"
         >
           Start your 3-minute setup

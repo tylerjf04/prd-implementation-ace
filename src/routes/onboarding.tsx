@@ -28,6 +28,7 @@ function Onboarding() {
   const { completeOnboarding } = useStore();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const [finishing, setFinishing] = useState(false);
 
   // form
   const [units, setUnits] = useState<Units>("metric");
@@ -67,10 +68,16 @@ function Onboarding() {
   };
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  const finish = () => {
-    completeOnboarding(draftProfile);
-    toast.success("Plan locked in. Let's go 🔥");
-    navigate({ to: "/app" });
+  const finish = async () => {
+    setFinishing(true);
+    try {
+      await completeOnboarding(draftProfile);
+      toast.success("Plan locked in. Let's go 🔥");
+      navigate({ to: "/app" });
+    } catch {
+      toast.error("Could not save plan. Check your connection and try again.");
+      setFinishing(false);
+    }
   };
 
   return (
@@ -154,7 +161,9 @@ function Onboarding() {
             <Field label="Age">
               <input
                 type="number" min={13} max={100}
-                value={age} onChange={(e) => setAge(+e.target.value || 0)}
+                value={age}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setAge(+e.target.value || 0)}
                 className="input"
               />
             </Field>
@@ -162,6 +171,7 @@ function Onboarding() {
             {units === "metric" ? (
               <Field label="Height (cm)">
                 <input type="number" min={100} max={250} value={heightCm}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setHeightCm(+e.target.value || 0)} className="input" />
               </Field>
             ) : (
@@ -169,11 +179,13 @@ function Onboarding() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center rounded-2xl border border-input bg-card pr-3">
                     <input type="number" min={3} max={8} value={ft}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => setFt(+e.target.value || 0)} className="input border-0 bg-transparent" />
                     <span className="text-muted-foreground">ft</span>
                   </div>
                   <div className="flex items-center rounded-2xl border border-input bg-card pr-3">
                     <input type="number" min={0} max={11} value={inch}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => setInch(+e.target.value || 0)} className="input border-0 bg-transparent" />
                     <span className="text-muted-foreground">in</span>
                   </div>
@@ -184,11 +196,13 @@ function Onboarding() {
             {units === "metric" ? (
               <Field label="Current weight (kg)">
                 <input type="number" min={30} max={300} step="0.1" value={weightKg}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setWeightKg(+e.target.value || 0)} className="input" />
               </Field>
             ) : (
               <Field label="Current weight (lb)">
                 <input type="number" min={60} max={600} step="0.1" value={weightLbs}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setWeightLbs(+e.target.value || 0)} className="input" />
               </Field>
             )}
@@ -290,9 +304,10 @@ function Onboarding() {
         ) : (
           <button
             onClick={finish}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-4 font-semibold text-background transition active:scale-[0.98]"
+            disabled={finishing}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground py-4 font-semibold text-background transition disabled:opacity-60 active:scale-[0.98]"
           >
-            Start tracking <ArrowRight className="h-5 w-5" />
+            {finishing ? "Saving plan…" : <>Start tracking <ArrowRight className="h-5 w-5" /></>}
           </button>
         )}
       </div>
