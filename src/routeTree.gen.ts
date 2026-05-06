@@ -14,7 +14,10 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppWeightRouteImport } from './routes/app.weight'
+import { Route as AppProfileRouteImport } from './routes/app.profile'
+import { Route as AppMessagesRouteImport } from './routes/app.messages'
 import { Route as AppLogRouteImport } from './routes/app.log'
+import { Route as AppFeedRouteImport } from './routes/app.feed'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -41,9 +44,24 @@ const AppWeightRoute = AppWeightRouteImport.update({
   path: '/weight',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMessagesRoute = AppMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLogRoute = AppLogRouteImport.update({
   id: '/log',
   path: '/log',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFeedRoute = AppFeedRouteImport.update({
+  id: '/feed',
+  path: '/feed',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -51,14 +69,20 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/app/feed': typeof AppFeedRoute
   '/app/log': typeof AppLogRoute
+  '/app/messages': typeof AppMessagesRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/weight': typeof AppWeightRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/onboarding': typeof OnboardingRoute
+  '/app/feed': typeof AppFeedRoute
   '/app/log': typeof AppLogRoute
+  '/app/messages': typeof AppMessagesRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/weight': typeof AppWeightRoute
   '/app': typeof AppIndexRoute
 }
@@ -67,21 +91,44 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/app/feed': typeof AppFeedRoute
   '/app/log': typeof AppLogRoute
+  '/app/messages': typeof AppMessagesRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/weight': typeof AppWeightRoute
   '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/onboarding' | '/app/log' | '/app/weight' | '/app/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/onboarding'
+    | '/app/feed'
+    | '/app/log'
+    | '/app/messages'
+    | '/app/profile'
+    | '/app/weight'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/onboarding' | '/app/log' | '/app/weight' | '/app'
+  to:
+    | '/'
+    | '/onboarding'
+    | '/app/feed'
+    | '/app/log'
+    | '/app/messages'
+    | '/app/profile'
+    | '/app/weight'
+    | '/app'
   id:
     | '__root__'
     | '/'
     | '/app'
     | '/onboarding'
+    | '/app/feed'
     | '/app/log'
+    | '/app/messages'
+    | '/app/profile'
     | '/app/weight'
     | '/app/'
   fileRoutesById: FileRoutesById
@@ -129,6 +176,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWeightRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/profile': {
+      id: '/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/messages': {
+      id: '/app/messages'
+      path: '/messages'
+      fullPath: '/app/messages'
+      preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/log': {
       id: '/app/log'
       path: '/log'
@@ -136,17 +197,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLogRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/feed': {
+      id: '/app/feed'
+      path: '/feed'
+      fullPath: '/app/feed'
+      preLoaderRoute: typeof AppFeedRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppFeedRoute: typeof AppFeedRoute
   AppLogRoute: typeof AppLogRoute
+  AppMessagesRoute: typeof AppMessagesRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppWeightRoute: typeof AppWeightRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppFeedRoute: AppFeedRoute,
   AppLogRoute: AppLogRoute,
+  AppMessagesRoute: AppMessagesRoute,
+  AppProfileRoute: AppProfileRoute,
   AppWeightRoute: AppWeightRoute,
   AppIndexRoute: AppIndexRoute,
 }
@@ -161,3 +235,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
