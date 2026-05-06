@@ -152,4 +152,20 @@
 
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { scrollbar-width: none; }
+
+  .input {
+    width: 100%;
+    border-radius: 1rem;
+    border: 1px solid var(--color-input);
+    background: var(--color-card);
+    padding: 0.875rem 1rem;
+    font-size: 1rem;
+    color: var(--color-foreground);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.15);
+  }
 }
