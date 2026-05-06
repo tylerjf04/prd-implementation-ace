@@ -7,6 +7,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { StoreProvider } from "@/lib/nutritrack/store";
+import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
 
@@ -72,14 +74,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "NutriTrack — Track macros, build streaks, share your journey" },
+      { name: "description", content: "Personalized nutrition planning meets a fitness social community. Auto-generated macro plans, streaks, and NutriGram." },
+      { name: "author", content: "NutriTrack" },
+      { property: "og:title", content: "NutriTrack" },
+      { property: "og:description", content: "Smart macro plans + a social feed built for the fitness community." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@nutritrack" },
     ],
     links: [
       {
@@ -113,7 +115,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <StoreProvider>
+        <Outlet />
+        <Toaster position="top-center" />
+      </StoreProvider>
     </QueryClientProvider>
   );
 }
