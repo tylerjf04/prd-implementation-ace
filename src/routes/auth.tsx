@@ -18,6 +18,15 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const friendlyError = (msg: string) => {
+    if (/invalid login credentials/i.test(msg)) return "Incorrect email or password.";
+    if (/email not confirmed/i.test(msg)) return "Please confirm your email before signing in.";
+    if (/user already registered/i.test(msg)) return "An account with this email already exists. Sign in instead.";
+    if (/password should be at least/i.test(msg)) return "Password must be at least 6 characters.";
+    if (/unable to validate email/i.test(msg) || /422/.test(msg)) return "Sign-up failed — email confirmation may be required. Disable it in your Supabase dashboard under Authentication → Providers → Email.";
+    return msg;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -25,20 +34,11 @@ function AuthPage() {
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
 
     setLoading(true);
-
-    // 15-second timeout so it never hangs forever
-    const timer = setTimeout(() => {
-      setLoading(false);
-      setError("Request timed out — check your connection and try again.");
-    }, 15000);
-
     try {
       if (tab === "signup") {
         const { data, error: sbError } = await supabase.auth.signUp({ email, password });
-        if (sbError) throw sbError;
+        if (sbError) { setError(friendlyError(sbError.message)); return; }
         if (!data.session) {
-          clearTimeout(timer);
-          setLoading(false);
           toast.success("Check your email to confirm your account, then sign in.");
           setTab("login");
           return;
@@ -46,14 +46,12 @@ function AuthPage() {
         navigate({ to: "/onboarding" });
       } else {
         const { error: sbError } = await supabase.auth.signInWithPassword({ email, password });
-        if (sbError) throw sbError;
+        if (sbError) { setError(friendlyError(sbError.message)); return; }
         navigate({ to: "/app" });
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Something went wrong";
-      setError(msg);
+      setError(err instanceof Error ? err.message : "Something went wrong. Check your connection.");
     } finally {
-      clearTimeout(timer);
       setLoading(false);
     }
   };
