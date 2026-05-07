@@ -20,6 +20,23 @@ const initial: AppState = {
   authLoading: true,
 };
 
+const CACHE_KEY = (uid: string) => `nt_data_${uid}`;
+
+function readCache(uid: string): Partial<AppState> | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY(uid));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function writeCache(uid: string, data: Pick<AppState, "profile" | "plan" | "meals" | "weights">) {
+  try { localStorage.setItem(CACHE_KEY(uid), JSON.stringify(data)); } catch { /* storage full */ }
+}
+
+function clearCache(uid: string) {
+  try { localStorage.removeItem(CACHE_KEY(uid)); } catch { /* ignore */ }
+}
+
 interface Ctx {
   state: AppState;
   completeOnboarding: (p: Profile) => Promise<void>;
@@ -41,7 +58,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const uid = session?.user?.id ?? null;
       userIdRef.current = uid;
 
@@ -50,22 +67,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setState((s) => ({ ...s, userId: uid, authLoading: true }));
-      try {
-        const data = await loadUserData(uid);
+      // Restore from cache immediately — no spinner on refresh
+      const cached = readCache(uid);
+      if (cached) {
         setState({
           userId: uid,
           authLoading: false,
-          profile: data.profile,
-          plan: data.plan,
-          meals: data.meals,
-          weights: data.weights,
-          onboardingComplete: !!data.profile,
+          profile: cached.profile,
+          plan: cached.plan,
+          meals: cached.meals ?? [],
+          weights: cached.weights ?? [],
+          onboardingComplete: !!cached.profile,
         });
-      } catch (err) {
-        console.error("[store] loadUserData:", err);
-        setState((s) => ({ ...s, authLoading: false }));
+      } else {
+        setState((s) => ({ ...s, userId: uid, authLoading: true }));
       }
+
+      // Always refresh from Supabase in the background
+      loadUserData(uid)
+        .then((data) => {
+          setState({
+            userId: uid,
+            authLoading: false,
+            profile: data.profile,
+            plan: data.plan,
+            meals: data.meals,
+            weights: data.weights,
+            onboardingComplete: !!data.profile,
+          });
+          writeCache(uid, data);
+        })
+        .catch((err) => {
+          console.error("[store] loadUserData:", err);
+          setState((s) => ({ ...s, authLoading: false }));
+        });
     });
 
     return () => subscription.unsubscribe();
@@ -85,7 +120,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         upsertWeightLog(uid, profile.weightKg, todayISO()),
       ]);
 
-      setState({
+      const nextState = {
         userId: uid,
         authLoading: false,
         profile,
@@ -93,7 +128,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         meals: [],
         weights: [{ id: crypto.randomUUID(), date: todayISO(), weightKg: profile.weightKg }],
         onboardingComplete: true,
-      });
+      };
+      setState(nextState);
+      writeCache(uid, nextState);
     },
 
     updateProfile: (p) => {
@@ -147,6 +184,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
 
     signOut: async () => {
+      const uid = userIdRef.current;
+      if (uid) clearCache(uid);
       await supabase.auth.signOut();
       userIdRef.current = null;
       setState({ ...initial, authLoading: false });
