@@ -56,7 +56,12 @@ function AuthPage() {
         navigate({ to: "/app" });
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Check your connection.");
+      const isTimeout = err instanceof DOMException && err.name === "AbortError";
+      setError(
+        isTimeout
+          ? "Request timed out. Your Supabase project may be paused — go to supabase.com/dashboard and resume it, then try again."
+          : err instanceof Error ? err.message : "Something went wrong. Check your connection."
+      );
     } finally {
       setLoading(false);
     }
