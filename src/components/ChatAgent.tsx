@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, Bot, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 
 const WEBHOOK_URL =
   "https://n8n.tamfco.com/webhook/9d6e4efc-3123-4f45-813a-4d631cb89675";
@@ -134,6 +135,7 @@ export function ChatAgent({ userId }: { userId: string | null }) {
                     m.text
                   ) : (
                     <ReactMarkdown
+                      remarkPlugins={[remarkBreaks]}
                       components={{
                         p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
                         strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
