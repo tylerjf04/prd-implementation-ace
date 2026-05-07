@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, Bot, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
 
 const WEBHOOK_URL =
   "https://n8n.tamfco.com/webhook/9d6e4efc-3123-4f45-813a-4d631cb89675";
@@ -129,7 +130,26 @@ export function ChatAgent({ userId }: { userId: string | null }) {
                       : "border border-border bg-muted text-foreground rounded-bl-sm",
                   )}
                 >
-                  {m.text}
+                  {m.role === "user" ? (
+                    m.text
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        h1: ({ children }) => <p className="font-bold text-base mb-1">{children}</p>,
+                        h2: ({ children }) => <p className="font-bold mb-1">{children}</p>,
+                        h3: ({ children }) => <p className="font-semibold mb-0.5">{children}</p>,
+                        ul: ({ children }) => <ul className="my-1 ml-4 list-disc space-y-0.5">{children}</ul>,
+                        ol: ({ children }) => <ol className="my-1 ml-4 list-decimal space-y-0.5">{children}</ol>,
+                        li: ({ children }) => <li className="leading-snug">{children}</li>,
+                        code: ({ children }) => <code className="rounded bg-black/10 px-1 py-0.5 font-mono text-xs">{children}</code>,
+                        hr: () => <hr className="my-2 border-border/40" />,
+                      }}
+                    >
+                      {m.text}
+                    </ReactMarkdown>
+                  )}
                 </div>
               </div>
             ))}
