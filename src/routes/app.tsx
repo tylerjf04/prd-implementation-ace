@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { BottomNav } from "@/components/nav/bottom-nav";
+import { ChatAgent } from "@/components/ChatAgent";
 import { useStore } from "@/lib/nutritrack/store";
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
@@ -32,6 +33,7 @@ function AppShell() {
         <Outlet />
       </main>
       <BottomNav />
+      <ChatAgent userId={state.userId} />
     </div>
   );
 }
