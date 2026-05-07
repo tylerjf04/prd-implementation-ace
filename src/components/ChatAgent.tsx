@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X, Send, Bot, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Loader2, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
@@ -11,6 +11,7 @@ interface Message {
   id: string;
   role: "user" | "agent";
   text: string;
+  imageBase64?: string;
 }
 
 const WELCOME: Message = {
@@ -20,20 +21,24 @@ const WELCOME: Message = {
 };
 
 function normalizeMarkdown(raw: string): string {
-  return (
-    raw
-      // literal "\n" strings from some webhook encodings → real newlines
-      .replace(/\\n/g, "\n")
-      // single newline → hard line break (two trailing spaces)
-      .replace(/(?<!\n)\n(?!\n)/g, "  \n")
-  );
+  return raw
+    .replace(/\\n/g, "\n")
+    .replace(/(?<!\n)\n(?!\n)/g, "  \n");
 }
 
-async function sendToWebhook(message: string, userId: string | null, sessionId: string): Promise<string> {
+async function sendToWebhook(
+  message: string,
+  userId: string | null,
+  sessionId: string,
+  imageBase64: string | null,
+): Promise<string> {
+  const body: Record<string, unknown> = { message, userId, sessionId };
+  if (imageBase64) body.image = imageBase64;
+
   const res = await fetch(WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, userId, sessionId }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) throw new Error(`Webhook error ${res.status}`);
@@ -54,13 +59,24 @@ async function sendToWebhook(message: string, userId: string | null, sessionId: 
   }
 }
 
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ChatAgent({ userId }: { userId: string | null }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -70,17 +86,32 @@ export function ChatAgent({ userId }: { userId: string | null }) {
     }
   }, [open, messages]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const base64 = await readFileAsBase64(file);
+    setPendingImage(base64);
+    e.target.value = "";
+  };
+
   const send = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if ((!text && !pendingImage) || loading) return;
 
-    const userMsg: Message = { id: crypto.randomUUID(), role: "user", text };
+    const imageToSend = pendingImage;
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      text,
+      imageBase64: imageToSend ?? undefined,
+    };
     setMessages((m) => [...m, userMsg]);
     setInput("");
+    setPendingImage(null);
     setLoading(true);
 
     try {
-      const reply = await sendToWebhook(text, userId, sessionId.current);
+      const reply = await sendToWebhook(text, userId, sessionId.current, imageToSend);
       setMessages((m) => [
         ...m,
         { id: crypto.randomUUID(), role: "agent", text: reply },
@@ -140,6 +171,13 @@ export function ChatAgent({ userId }: { userId: string | null }) {
                       : "border border-border bg-muted text-foreground rounded-bl-sm",
                   )}
                 >
+                  {m.imageBase64 && (
+                    <img
+                      src={m.imageBase64}
+                      alt="attachment"
+                      className="mb-1.5 max-h-40 w-full rounded-xl object-cover"
+                    />
+                  )}
                   {m.role === "user" ? (
                     m.text
                   ) : (
@@ -177,6 +215,25 @@ export function ChatAgent({ userId }: { userId: string | null }) {
             <div ref={bottomRef} />
           </div>
 
+          {/* Image preview */}
+          {pendingImage && (
+            <div className="relative mx-3 mb-1">
+              <img
+                src={pendingImage}
+                alt="pending"
+                className="h-20 w-20 rounded-xl object-cover border border-border"
+              />
+              <button
+                type="button"
+                onClick={() => setPendingImage(null)}
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background shadow"
+                aria-label="Remove image"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           {/* Input */}
           <form
             onSubmit={(e) => {
@@ -185,6 +242,22 @@ export function ChatAgent({ userId }: { userId: string | null }) {
             }}
             className="flex items-center gap-2 border-t border-border/60 bg-background/60 px-3 py-2.5"
           >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={loading}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted disabled:opacity-40"
+              aria-label="Attach image"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
             <input
               ref={inputRef}
               value={input}
@@ -195,7 +268,7 @@ export function ChatAgent({ userId }: { userId: string | null }) {
             />
             <button
               type="submit"
-              disabled={!input.trim() || loading}
+              disabled={(!input.trim() && !pendingImage) || loading}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-sunset text-primary-foreground shadow-glow transition disabled:opacity-40"
               aria-label="Send"
             >
