@@ -19,6 +19,16 @@ const WELCOME: Message = {
   text: "Hey! I'm your NutriCoach 🥗 Ask me anything about your macros, meal ideas, or hitting your goals.",
 };
 
+function normalizeMarkdown(raw: string): string {
+  return (
+    raw
+      // literal "\n" strings from some webhook encodings → real newlines
+      .replace(/\\n/g, "\n")
+      // single newline → hard line break (two trailing spaces)
+      .replace(/(?<!\n)\n(?!\n)/g, "  \n")
+  );
+}
+
 async function sendToWebhook(message: string, userId: string | null, sessionId: string): Promise<string> {
   const res = await fetch(WEBHOOK_URL, {
     method: "POST",
@@ -31,17 +41,16 @@ async function sendToWebhook(message: string, userId: string | null, sessionId: 
   const text = await res.text();
   try {
     const json = JSON.parse(text);
-    // n8n can return various shapes — try common keys
-    return (
+    const raw =
       json.message ??
       json.reply ??
       json.response ??
       json.output ??
       json.text ??
-      (typeof json === "string" ? json : JSON.stringify(json))
-    );
+      (typeof json === "string" ? json : JSON.stringify(json));
+    return normalizeMarkdown(raw);
   } catch {
-    return text;
+    return normalizeMarkdown(text);
   }
 }
 
