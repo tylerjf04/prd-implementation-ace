@@ -33,7 +33,7 @@ async function sendToWebhook(
   imageBase64: string | null,
 ): Promise<string> {
   const body: Record<string, unknown> = { message, userId, sessionId };
-  if (imageBase64) body.image = imageBase64;
+  if (imageBase64) body.image = imageBase64.split(",")[1] ?? imageBase64;
 
   const res = await fetch(WEBHOOK_URL, {
     method: "POST",
