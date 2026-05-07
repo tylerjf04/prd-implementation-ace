@@ -16,32 +16,44 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return toast.error("Email is required");
-    if (password.length < 6) return toast.error("Password must be at least 6 characters");
+    setError(null);
+    if (!email.trim()) { setError("Email is required"); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
 
     setLoading(true);
+
+    // 15-second timeout so it never hangs forever
+    const timer = setTimeout(() => {
+      setLoading(false);
+      setError("Request timed out — check your connection and try again.");
+    }, 15000);
+
     try {
       if (tab === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
+        const { data, error: sbError } = await supabase.auth.signUp({ email, password });
+        if (sbError) throw sbError;
         if (!data.session) {
-          // Email confirmation required
+          clearTimeout(timer);
+          setLoading(false);
           toast.success("Check your email to confirm your account, then sign in.");
           setTab("login");
-        } else {
-          navigate({ to: "/onboarding" });
+          return;
         }
+        navigate({ to: "/onboarding" });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { error: sbError } = await supabase.auth.signInWithPassword({ email, password });
+        if (sbError) throw sbError;
         navigate({ to: "/app" });
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setError(msg);
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   };
@@ -110,6 +122,12 @@ function AuthPage() {
             {showPw ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           </button>
         </div>
+
+        {error && (
+          <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"
