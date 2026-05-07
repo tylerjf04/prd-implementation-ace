@@ -17,11 +17,11 @@ const WELCOME: Message = {
   text: "Hey! I'm your NutriCoach 🥗 Ask me anything about your macros, meal ideas, or hitting your goals.",
 };
 
-async function sendToWebhook(message: string, userId: string | null): Promise<string> {
+async function sendToWebhook(message: string, userId: string | null, sessionId: string): Promise<string> {
   const res = await fetch(WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, userId }),
+    body: JSON.stringify({ message, userId, sessionId }),
   });
 
   if (!res.ok) throw new Error(`Webhook error ${res.status}`);
@@ -50,6 +50,7 @@ export function ChatAgent({ userId }: { userId: string | null }) {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sessionId = useRef(crypto.randomUUID());
 
   useEffect(() => {
     if (open) {
@@ -68,7 +69,7 @@ export function ChatAgent({ userId }: { userId: string | null }) {
     setLoading(true);
 
     try {
-      const reply = await sendToWebhook(text, userId);
+      const reply = await sendToWebhook(text, userId, sessionId.current);
       setMessages((m) => [
         ...m,
         { id: crypto.randomUUID(), role: "agent", text: reply },
