@@ -18,13 +18,19 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const friendlyError = (msg: string) => {
-    if (/invalid login credentials/i.test(msg)) return "Incorrect email or password.";
-    if (/email not confirmed/i.test(msg)) return "Please confirm your email before signing in.";
-    if (/user already registered/i.test(msg)) return "An account with this email already exists. Sign in instead.";
-    if (/password should be at least/i.test(msg)) return "Password must be at least 6 characters.";
-    if (/unable to validate email/i.test(msg) || /422/.test(msg)) return "Sign-up failed — email confirmation may be required. Disable it in your Supabase dashboard under Authentication → Providers → Email.";
-    return msg;
+  const friendlyError = (err: { message: string; code?: string; status?: number }) => {
+    const { message, code, status } = err;
+    if (code === "user_already_exists" || /user already registered/i.test(message))
+      return "An account with this email already exists — switch to Sign in.";
+    if (code === "invalid_credentials" || /invalid login credentials/i.test(message))
+      return "Incorrect email or password.";
+    if (code === "email_not_confirmed" || /email not confirmed/i.test(message))
+      return 'Email not confirmed. Disable "Confirm email" in Supabase → Authentication → Providers → Email, then delete and re-create your account.';
+    if (code === "over_email_send_rate_limit" || /rate limit/i.test(message))
+      return "Too many attempts — wait a minute and try again.";
+    if (status === 422)
+      return `Sign-up rejected: ${message}`;
+    return message;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,7 +43,7 @@ function AuthPage() {
     try {
       if (tab === "signup") {
         const { data, error: sbError } = await supabase.auth.signUp({ email, password });
-        if (sbError) { setError(friendlyError(sbError.message)); return; }
+        if (sbError) { setError(friendlyError(sbError)); return; }
         if (!data.session) {
           toast.success("Check your email to confirm your account, then sign in.");
           setTab("login");
@@ -46,7 +52,7 @@ function AuthPage() {
         navigate({ to: "/onboarding" });
       } else {
         const { error: sbError } = await supabase.auth.signInWithPassword({ email, password });
-        if (sbError) { setError(friendlyError(sbError.message)); return; }
+        if (sbError) { setError(friendlyError(sbError)); return; }
         navigate({ to: "/app" });
       }
     } catch (err: unknown) {
