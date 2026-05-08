@@ -278,21 +278,16 @@ export function ChatAgent({ userId }: { userId: string | null }) {
         </div>
       )}
 
-      {/* Floating toggle button */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Close chat" : "Open NutriCoach"}
-        className={cn(
-          "fixed bottom-[5.5rem] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-glow transition-transform active:scale-95",
-          open ? "bg-foreground text-background" : "bg-gradient-sunset text-primary-foreground",
-        )}
-      >
-        {open ? (
-          <X className="h-6 w-6" />
-        ) : (
+      {/* Floating toggle button — only shown when chat is closed */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open NutriCoach"
+          className="fixed bottom-[5.5rem] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-sunset text-primary-foreground shadow-glow transition-transform active:scale-95"
+        >
           <MessageCircle className="h-6 w-6" strokeWidth={2.5} />
-        )}
-      </button>
+        </button>
+      )}
     </>
   );
 }
