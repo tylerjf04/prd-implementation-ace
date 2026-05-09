@@ -29,6 +29,7 @@ function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [finishing, setFinishing] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
 
   // form
   const [units, setUnits] = useState<Units>("metric");
@@ -70,12 +71,14 @@ function Onboarding() {
 
   const finish = async () => {
     setFinishing(true);
+    setFinishError(null);
     try {
       await completeOnboarding(draftProfile);
       toast.success("Plan locked in. Let's go 🔥");
       navigate({ to: "/app" });
-    } catch {
-      toast.error("Could not save plan. Check your connection and try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not save plan.";
+      setFinishError(msg + " Check your connection and try again.");
       setFinishing(false);
     }
   };
@@ -293,7 +296,12 @@ function Onboarding() {
         )}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 space-y-3">
+        {finishError && (
+          <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm font-medium text-destructive">
+            {finishError}
+          </p>
+        )}
         {step < steps.length - 1 ? (
           <button
             onClick={next}

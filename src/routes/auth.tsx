@@ -68,7 +68,7 @@ function AuthPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center px-5 pb-10">
+    <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col items-center justify-center px-5 pb-10 pt-safe">
       {/* Logo */}
       <div className="mb-8 flex flex-col items-center gap-3">
         <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-sunset text-primary-foreground shadow-glow">
