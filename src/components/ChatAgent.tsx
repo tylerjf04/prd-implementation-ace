@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X, Send, Bot, Loader2, Paperclip } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Loader2, Paperclip, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
@@ -77,6 +77,7 @@ export function ChatAgent({ userId }: { userId: string | null }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const sessionId = useRef(crypto.randomUUID());
 
   useEffect(() => {
@@ -249,6 +250,14 @@ export function ChatAgent({ userId }: { userId: string | null }) {
               className="hidden"
               onChange={handleFileChange}
             />
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -257,6 +266,15 @@ export function ChatAgent({ userId }: { userId: string | null }) {
               aria-label="Attach image"
             >
               <Paperclip className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              disabled={loading}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted disabled:opacity-40"
+              aria-label="Take photo"
+            >
+              <Camera className="h-4 w-4" />
             </button>
             <input
               ref={inputRef}
