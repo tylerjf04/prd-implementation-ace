@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useStore, computeStreak } from "@/lib/nutritrack/store";
 import { Settings, Flame, Grid3x3, BarChart3, LogOut } from "lucide-react";
-import { mockPosts } from "@/lib/nutritrack/mock";
+import { loadUserPosts, type Post } from "@/lib/nutritrack/posts";
 import { kgToLbs } from "@/lib/nutritrack/calc";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 
 export const Route = createFileRoute("/app/profile")({
   component: ProfilePage,
@@ -21,6 +21,12 @@ function ProfilePage() {
   const conv = (kg: number) => (profile.units === "metric" ? kg : kgToLbs(kg));
 
   const goalTag = profile.goal === "lose" ? "🔽 Cutting" : profile.goal === "gain" ? "🔼 Bulking" : "⚖️ Maintaining";
+  const [myPosts, setMyPosts] = useState<Post[]>([]);
+
+  useEffect(() => {
+    if (!state.userId) return;
+    loadUserPosts(state.userId, state.userId).then(setMyPosts).catch(console.error);
+  }, [state.userId]);
 
   return (
     <div className="px-5 pb-10 pt-6">
@@ -38,8 +44,8 @@ function ProfilePage() {
         </div>
         <div className="flex flex-1 justify-around text-center">
           <Stat n={state.meals.length} l="logs" />
-          <Stat n="128" l="followers" />
-          <Stat n="241" l="following" />
+          <Stat n={myPosts.length} l="posts" />
+          <Stat n={streak} l="day streak" />
         </div>
       </div>
 
@@ -83,13 +89,24 @@ function ProfilePage() {
         </Link>
       </div>
 
-      {/* photo grid (mock) */}
       <div className="mt-2 grid grid-cols-3 gap-0.5">
-        {mockPosts.map((p) => (
-          <div key={p.id} className="aspect-square overflow-hidden bg-muted">
-            <img src={p.image} className="h-full w-full object-cover" alt="" loading="lazy" />
+        {myPosts.length === 0 ? (
+          <div className="col-span-3 py-10 text-center text-sm text-muted-foreground">
+            No posts yet — share your first from the feed!
           </div>
-        ))}
+        ) : (
+          myPosts.map((p) =>
+            p.imageUrl ? (
+              <div key={p.id} className="aspect-square overflow-hidden bg-muted">
+                <img src={p.imageUrl} className="h-full w-full object-cover" alt="" loading="lazy" />
+              </div>
+            ) : (
+              <div key={p.id} className="flex aspect-square items-center justify-center overflow-hidden bg-muted p-2">
+                <p className="line-clamp-4 text-center text-xs text-muted-foreground">{p.caption}</p>
+              </div>
+            )
+          )
+        )}
       </div>
 
       <button
